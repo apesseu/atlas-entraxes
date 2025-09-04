@@ -39,8 +39,8 @@ SHOW = 10               # nb de lignes à montrer
 
 # Chemins des fichiers (votre logique exacte)
 root = Path(__file__).resolve().parent.parent
-ZONES_FILE = root / "atlas/data/dept_zones_NORMALISE.csv"
-RULES_FILE = root / "atlas/data/results_by_combo.csv"
+ZONES_FILE = root / "data/dept_zones_NORMALISE.csv"
+RULES_FILE = root / "data/results_by_combo.csv"
 
 # Types de données pandas (vos définitions exactes)
 ZONES_DTYPES = {
