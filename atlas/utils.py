@@ -151,7 +151,7 @@ def validate_geojson_structure(geojson_data: dict) -> bool:
         ValueError: Si la structure GeoJSON est invalide
         
     Example:
-        >>> with open("data/departements.geojson") as f:
+        >>> with open("atlas/data/departements.geojson") as f:
         ...     geojson = json.load(f)
         >>> if validate_geojson_structure(geojson):
         ...     print("GeoJSON valide")

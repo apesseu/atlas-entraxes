@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # ====== CHEMINS DE FICHIERS ======
 
 # Répertoire racine des données
-DATA_DIR: Path = Path("data")
+DATA_DIR: Path = Path(__file__).parent / "data"
 """Répertoire contenant tous les fichiers de données de l'application."""
 
 # Fichiers de données principaux
@@ -84,6 +84,21 @@ RULES_DTYPES: dict = {
 }
 """Types de données pour le fichier des règles de calcul."""
 
+DETAILS_DTYPES: dict = {
+    "Config": "string",
+    "Type_Serre": "string",
+    "Hauteur_Poteau": "string",
+    "Largeur": "string",
+    "Toiture": "string",
+    "Facade": "string",
+    "Traverse": "string",
+    "Materiau": "string",
+    "Resistance_Vent": "string",
+    "Date_Creation": "string",
+    "Version": "string"
+}
+"""Types de données pour le fichier des détails de configuration."""
+
 # ====== FONCTIONS DE VALIDATION ======
 
 def validate_file_existence(file_path: Path, file_description: str = "") -> bool:
@@ -93,7 +108,6 @@ def validate_file_existence(file_path: Path, file_description: str = "") -> bool
     Args:
         file_path (Path): Chemin vers le fichier à valider.
         file_description (str, optional): Description du fichier pour les messages d'erreur.
-            Defaults to "".
     
     Returns:
         bool: True si le fichier existe et est accessible.
@@ -101,10 +115,6 @@ def validate_file_existence(file_path: Path, file_description: str = "") -> bool
     Raises:
         FileNotFoundError: Si le fichier n'existe pas.
         PermissionError: Si le fichier n'est pas accessible en lecture.
-        
-    Example:
-        >>> validate_file_existence(Path("data/test.csv"), "fichier de test")
-        True
     """
     description = file_description or f"'{file_path.name}'"
     
@@ -146,17 +156,13 @@ def validate_file_size(file_path: Path, max_size_mb: int = MAX_FILE_SIZE_MB) -> 
     
     Args:
         file_path (Path): Chemin vers le fichier à valider.
-        max_size_mb (int, optional): Taille maximale en MB. Defaults to MAX_FILE_SIZE_MB.
+        max_size_mb (int, optional): Taille maximale en MB.
         
     Returns:
         bool: True si la taille est acceptable.
         
     Raises:
         ValueError: Si le fichier est trop volumineux.
-        
-    Example:
-        >>> validate_file_size(Path("data/small.csv"), max_size_mb=10)
-        True
     """
     file_size_bytes = file_path.stat().st_size
     file_size_mb = file_size_bytes / (1024 * 1024)
@@ -177,25 +183,14 @@ def check_required_files(include_optional: bool = False) -> List[Path]:
     """
     Vérifie que tous les fichiers requis pour l'application sont présents et accessibles.
     
-    Cette fonction est appelée au démarrage de l'application pour s'assurer que
-    tous les fichiers de données nécessaires sont disponibles avant de continuer.
-    
     Args:
-        include_optional (bool, optional): Si True, inclut aussi les fichiers optionnels
-            dans la validation. Defaults to False.
+        include_optional (bool, optional): Si True, inclut aussi les fichiers optionnels.
     
     Returns:
         List[Path]: Liste des fichiers validés avec succès.
         
     Raises:
         FileNotFoundError: Si un ou plusieurs fichiers requis sont manquants.
-        PermissionError: Si un fichier n'est pas accessible en lecture.
-        ValueError: Si un fichier est trop volumineux.
-        
-    Example:
-        >>> validated_files = check_required_files()
-        >>> print(f"Fichiers validés : {len(validated_files)}")
-        Fichiers validés : 3
     """
     logger.info("Démarrage de la validation des fichiers requis...")
     
@@ -256,19 +251,78 @@ def check_required_files(include_optional: bool = False) -> List[Path]:
     return validated_files
 
 
+def validate_data_consistency() -> bool:
+    """
+    Valide la cohérence entre les différents fichiers de données.
+    
+    Returns:
+        bool: True si tous les fichiers sont cohérents.
+        
+    Raises:
+        ValueError: En cas d'incohérence détectée.
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        logger.warning("Pandas non disponible, validation de cohérence ignorée")
+        return True
+    
+    logger.info("Validation de la cohérence des données...")
+    
+    try:
+        # Chargement des données
+        zones_df = pd.read_csv(ZONES_PATH, dtype=ZONES_DTYPES)
+        rules_df = pd.read_csv(RULES_PATH, dtype=RULES_DTYPES)
+        
+        # Validation optionnelle du fichier details
+        if DETAILS_PATH.exists():
+            details_df = pd.read_csv(DETAILS_PATH, dtype=DETAILS_DTYPES)
+            
+            # Vérifier que toutes les configs dans details existent dans rules
+            configs_details = set(details_df['Config'].dropna().unique())
+            configs_rules = set(rules_df['Config'].dropna().unique())
+            
+            missing_configs = configs_details - configs_rules
+            if missing_configs:
+                raise ValueError(
+                    f"Configurations dans details.csv absentes de results_by_combo.csv: "
+                    f"{', '.join(missing_configs)}"
+                )
+            
+            logger.info(f"✓ Cohérence details.csv ↔ results_by_combo.csv : {len(configs_details)} configurations")
+        
+        # Vérifier que toutes les zones dans rules existent dans zones
+        zones_in_rules = set()
+        zones_in_rules.update(rules_df['Zone_Vent'].dropna().unique())
+        zones_in_rules.update(rules_df['Zone_Neige'].dropna().unique())
+        
+        zones_available = set()
+        zones_available.update(zones_df['Zone_Vent'].dropna().unique())
+        zones_available.update(zones_df['Zone_Neige'].dropna().unique())
+        
+        missing_zones = zones_in_rules - zones_available
+        if missing_zones:
+            raise ValueError(
+                f"Zones dans results_by_combo.csv absentes de dept_zones_NORMALISE.csv: "
+                f"{', '.join(missing_zones)}"
+            )
+        
+        logger.info(f"✓ Cohérence results_by_combo.csv ↔ dept_zones_NORMALISE.csv : {len(zones_in_rules)} zones")
+        logger.info("✅ Validation de cohérence réussie !")
+        return True
+        
+    except Exception as e:
+        error_msg = f"Erreur lors de la validation de cohérence : {e}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
+
 def get_data_dir_info() -> dict:
     """
     Retourne des informations sur le répertoire de données.
     
-    Utile pour le debugging et les logs de diagnostic.
-    
     Returns:
         dict: Informations sur le répertoire (existence, permissions, contenu, etc.)
-        
-    Example:
-        >>> info = get_data_dir_info()
-        >>> print(f"Répertoire existe : {info['exists']}")
-        >>> print(f"Fichiers présents : {info['file_count']}")
     """
     info = {
         "path": str(DATA_DIR.absolute()),
@@ -291,17 +345,89 @@ def get_data_dir_info() -> dict:
     return info
 
 
+def get_config_details(config_name: str) -> Optional[dict]:
+    """
+    Récupère les détails d'une configuration spécifique.
+    
+    Args:
+        config_name (str): Nom de la configuration (ex: "holyspirit4")
+    
+    Returns:
+        Optional[dict]: Dictionnaire avec les détails de la configuration,
+                       ou None si la configuration n'existe pas.
+    """
+    if not DETAILS_PATH.exists():
+        logger.info(f"Fichier {DETAILS_PATH} non trouvé, détails non disponibles")
+        return None
+    
+    try:
+        import pandas as pd
+        details_df = pd.read_csv(DETAILS_PATH, dtype=DETAILS_DTYPES)
+        
+        # Recherche de la configuration
+        config_row = details_df[details_df['Config'] == config_name]
+        
+        if config_row.empty:
+            logger.info(f"Configuration '{config_name}' non trouvée dans details.csv")
+            return None
+        
+        # Conversion en dictionnaire (première ligne si plusieurs)
+        details_dict = config_row.iloc[0].to_dict()
+        
+        # Nettoyage des valeurs NaN
+        details_clean = {
+            key: value for key, value in details_dict.items() 
+            if pd.notna(value) and str(value).strip()
+        }
+        
+        logger.info(f"Détails trouvés pour la configuration '{config_name}'")
+        return details_clean
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la lecture des détails pour '{config_name}': {e}")
+        return None
+
+
+def list_available_configs() -> List[str]:
+    """
+    Retourne la liste de toutes les configurations disponibles.
+    
+    Returns:
+        List[str]: Liste triée des noms de configurations disponibles.
+    """
+    configs = set()
+    
+    try:
+        import pandas as pd
+        
+        # Configurations depuis rules.csv (fichier principal)
+        if RULES_PATH.exists():
+            rules_df = pd.read_csv(RULES_PATH, dtype=RULES_DTYPES)
+            configs.update(rules_df['Config'].dropna().unique())
+        
+        # Configurations depuis details.csv (métadonnées)
+        if DETAILS_PATH.exists():
+            details_df = pd.read_csv(DETAILS_PATH, dtype=DETAILS_DTYPES)
+            configs.update(details_df['Config'].dropna().unique())
+        
+        sorted_configs = sorted(list(configs))
+        logger.info(f"Configurations disponibles : {len(sorted_configs)}")
+        return sorted_configs
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la lecture des configurations : {e}")
+        return []
+
+
 def setup_logging(level: str = "INFO") -> None:
     """
     Configure le système de logging pour l'application.
     
     Args:
         level (str, optional): Niveau de log (DEBUG, INFO, WARNING, ERROR, CRITICAL).
-            Defaults to "INFO".
     """
     numeric_level = getattr(logging, level.upper(), logging.INFO)
     
-    # Configuration basique du logging
     logging.basicConfig(
         level=numeric_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -314,7 +440,7 @@ def setup_logging(level: str = "INFO") -> None:
 # ====== INITIALISATION DU MODULE ======
 
 # Configuration automatique du logging lors de l'import
-if __name__ != "__main__":  # Seulement si importé, pas si exécuté directement
+if __name__ != "__main__":
     setup_logging("INFO" if not DEBUG_MODE else "DEBUG")
 
 
@@ -350,6 +476,27 @@ if __name__ == "__main__":
         print(f"\n🔍 Validation des fichiers requis...")
         validated_files = check_required_files(include_optional=True)
         print(f"✅ {len(validated_files)} fichier(s) validé(s) avec succès !")
+        
+        # Test de cohérence des données
+        print(f"\n🔗 Validation de la cohérence des données...")
+        try:
+            validate_data_consistency()
+            print("✅ Cohérence des données validée !")
+        except Exception as e:
+            print(f"⚠️  Validation de cohérence échouée : {e}")
+        
+        # Test des fonctions utilitaires
+        print(f"\n📋 Test des fonctions utilitaires...")
+        configs = list_available_configs()
+        print(f"   Configurations trouvées : {len(configs)}")
+        if configs:
+            print(f"   Exemples : {', '.join(configs[:3])}")
+            
+            # Test de récupération des détails pour la première config
+            if configs:
+                details = get_config_details(configs[0])
+                if details:
+                    print(f"   Détails pour '{configs[0]}' : {len(details)} champs")
         
     except Exception as e:
         print(f"❌ Erreur lors du test : {e}")

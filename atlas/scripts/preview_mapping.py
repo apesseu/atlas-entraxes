@@ -38,8 +38,8 @@ logger = logging.getLogger(__name__)
 
 # Chemins des fichiers (votre logique exacte)
 root = Path(__file__).resolve().parent.parent
-XLSX = root / "data/dept_zones.xlsx"          # on lit TON Excel tel quel
-OUT = root / "data/dept_zones_NORMALISE.csv"  # sortie pour l'app
+XLSX = root / "atlas/data/dept_zones.xlsx"          # on lit TON Excel tel quel
+OUT = root / "atlas/data/dept_zones_NORMALISE.csv"  # sortie pour l'app
 
 # Paramètres Excel
 SHEET_NAME = "Zonage_Departements"
