@@ -40,9 +40,26 @@ En cas de :
 
 ### Accès à l'application
 
-1. Ouvrez votre navigateur web
-2. Accédez à l'URL fournie par votre administrateur
-3. L'interface se charge automatiquement
+#### Méthode standard (recommandée)
+1. L'application se lance automatiquement via le script unifié
+2. Ouvrez votre navigateur web
+3. Accédez à `http://127.0.0.1:8050/`
+4. L'interface se charge automatiquement
+
+#### Options de lancement avancées
+```bash
+# Mode silencieux (recommandé pour utilisation quotidienne)
+poetry run python atlas/app.py --quiet
+
+# Port personnalisé
+poetry run python atlas/app.py --port 3000
+
+# Mode debug (développement)
+poetry run python atlas/app.py --debug
+
+# Aide complète
+poetry run python atlas/app.py --help
+```
 
 **Navigateurs recommandés :** Chrome, Firefox, Edge (versions récentes)
 
@@ -307,6 +324,15 @@ R: Actuellement, seule la France métropolitaine est couverte.
 **Q: Puis-je utiliser l'Atlas pour des projets à l'export ?**
 R: Non, les zones vent/neige sont spécifiques à la réglementation française.
 
+**Q: Pourquoi l'application met-elle 2-3 secondes à démarrer ?**
+R: C'est normal ! L'application pré-calcule toutes les combinaisons pour garantir des interactions ultra-rapides. Une fois démarrée, toutes les actions sont quasi-instantanées.
+
+**Q: Que signifie le mode `--quiet` ?**
+R: Le mode silencieux supprime les messages de debug et warnings pandas, gardant seulement les informations importantes. Idéal pour une utilisation quotidienne.
+
+**Q: Puis-je changer le port d'écoute ?**
+R: Oui, utilisez `--port 3000` (ou tout autre port disponible) pour éviter les conflits avec d'autres applications.
+
 ### Support technique
 
 **En cas de problème** :
@@ -319,8 +345,25 @@ R: Non, les zones vent/neige sont spécifiques à la réglementation française.
 - Contactez le bureau d'études
 - Référez-vous aux conditions d'utilisation détaillées
 
+### Performance et optimisation
+
+**Temps de démarrage** : 2-3 secondes
+- Pré-calcul de toutes les combinaisons config/entraxe
+- Cache des palettes de couleurs
+- Optimisation des données géographiques
+
+**Interactions** : Quasi-instantanées
+- Toutes les données sont pré-calculées
+- Cache LRU multi-niveaux
+- Interface ultra-réactive
+
+**Mode silencieux recommandé** :
+```bash
+poetry run python atlas/app.py --quiet
+```
+
 ---
 
 **Dernière mise à jour** : Septembre 2025
-**Version du guide** : 1.0
+**Version du guide** : 2.1
 **Contact** : avicenne.pesseu@gmain.com

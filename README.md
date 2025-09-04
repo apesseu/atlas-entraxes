@@ -29,10 +29,12 @@ L'application offre une interface cartographique interactive avec intégration d
 
 ## 🏗️ Architecture
 
+### Structure du projet
+
 ```
 atlas-entraxes/
 ├── atlas/                    # Module principal
-│   ├── app.py              # Application Dash principale
+│   ├── app.py              # Application Dash avec architecture optimisée
 │   ├── config.py           # Configuration centralisée et validation
 │   ├── utils.py            # Fonctions utilitaires (géographie, couleurs)
 │   ├── run.py              # Script unifié de lancement
@@ -49,6 +51,28 @@ atlas-entraxes/
 ├── poetry.lock             # Verrouillage des dépendances
 └── README.md               # Documentation
 ```
+
+### Architecture technique optimisée
+
+#### Pré-calcul et cache
+- **Pré-calcul au démarrage** : Toutes les combinaisons config/entraxe sont calculées à l'initialisation
+- **Cache LRU multi-niveaux** : 
+  - Palettes de couleurs (maxsize=16)
+  - Choropleths de base (maxsize=50)
+  - Détails de configuration (maxsize=100)
+  - Panneaux UI (maxsize=10)
+- **Threading sécurisé** : Gestion des accès concurrents avec locks
+
+#### Performance
+- **Temps de démarrage** : ~2-3 secondes (pré-calcul initial)
+- **Interactions utilisateur** : Quasi-instantanées (données en cache)
+- **Mémoire optimisée** : Cache intelligent avec limites configurables
+
+#### Architecture modulaire
+- **Point d'entrée unique** : `main()` avec gestion des arguments
+- **Initialisation contrôlée** : `initialize_app()` pour la création de l'application
+- **Configuration flexible** : Arguments en ligne de commande
+- **Logging configurable** : Niveaux ajustables selon les besoins
 
 ## 🚀 Installation
 
@@ -91,18 +115,47 @@ pip install dash plotly pandas numpy shapely pathlib
 
 ### Lancement de l'application
 
+#### Méthode recommandée (script unifié)
 ```bash
-# Avec Poetry (recommandé)
-poetry run python atlas/app.py
-
-# Ou avec le script unifié
+# Lancement standard avec normalisation automatique
 poetry run python atlas/run.py
-
-# Ou directement si l'environnement est activé
-python atlas/app.py
 ```
 
-L'application sera accessible sur `http://127.0.0.1:8050`
+#### Lancement direct avec options avancées
+```bash
+# Lancement standard
+poetry run python atlas/app.py
+
+# Avec port personnalisé
+poetry run python atlas/app.py --port 3000
+
+# Mode silencieux (supprime les warnings pandas)
+poetry run python atlas/app.py --quiet
+
+# Mode debug pour développement
+poetry run python atlas/app.py --debug
+
+# Désactiver le cache (débogage)
+poetry run python atlas/app.py --no-cache
+
+# Combinaison d'options
+poetry run python atlas/app.py --port 8080 --host 0.0.0.0 --quiet --debug
+
+# Aide complète
+poetry run python atlas/app.py --help
+```
+
+#### Arguments disponibles
+
+| Argument | Description | Défaut |
+|----------|-------------|---------|
+| `--port` | Port du serveur web | 8050 |
+| `--host` | Adresse d'écoute | 127.0.0.1 |
+| `--debug` | Active le mode debug Dash | False |
+| `--quiet` | Supprime les warnings pandas | False |
+| `--no-cache` | Désactive les optimisations LRU | False |
+
+L'application sera accessible sur `http://127.0.0.1:8050` (ou le port spécifié)
 
 ### Scripts utilitaires
 
@@ -119,8 +172,7 @@ poetry run python atlas/scripts/quick_preview.py
 
 ### Configuration
 
-La configuration est centralisée dans `atlas/config.py` :
-
+#### Configuration centralisée (`atlas/config.py`)
 ```python
 # Chemins des fichiers de données (relatifs au module atlas/)
 DATA_DIR = Path(__file__).parent / "data"
@@ -129,10 +181,20 @@ ZONES_PATH = DATA_DIR / "dept_zones_NORMALISE.csv"
 DETAILS_PATH = DATA_DIR / "details.csv"
 RULES_PATH = DATA_DIR / "results_by_combo.csv"
 
-# Paramètres serveur
+# Paramètres serveur (défauts, surchargeables par arguments)
 HOST = "127.0.0.1"
 PORT = 8050
-DEBUG_MODE = True
+DEBUG_MODE = False  # Mode production par défaut
+```
+
+#### Configuration en ligne de commande
+Tous les paramètres peuvent être surchargés via les arguments :
+```bash
+# Exemple : serveur de production
+poetry run python atlas/app.py --host 0.0.0.0 --port 8080 --quiet
+
+# Exemple : développement local
+poetry run python atlas/app.py --debug --port 3000
 ```
 
 ## 📊 Structure des données
@@ -262,7 +324,20 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 
 ## 📈 Changelog
 
-### Version 2.0.0 (Actuelle)
+### Version 2.1.0 (Actuelle)
+- ⚡ **Architecture optimisée** avec pré-calcul et cache LRU multi-niveaux
+- 🚀 **Performance maximale** : interactions quasi-instantanées
+- 🛠️ **Arguments en ligne de commande** pour configuration flexible
+- 🔇 **Mode silencieux** avec contrôle de la verbosité
+- 🏗️ **Architecture modulaire** complète (config.py, utils.py, scripts/)
+- 🔧 **Gestion centralisée des chemins** avec config.py
+- 📁 **Structure de données cohérente** dans atlas/data/
+- 🚀 **Scripts utilitaires** pour normalisation et prévisualisation
+- ✅ **Validation robuste** des fichiers avec gestion d'erreurs
+- 🎨 **Interface moderne** avec design système cohérent
+- 📱 **Responsive design** pour tous les écrans
+
+### Version 2.0.0
 - 🏗️ **Architecture modulaire** complète (config.py, utils.py, scripts/)
 - 🔧 **Gestion centralisée des chemins** avec config.py
 - 📁 **Structure de données cohérente** dans atlas/data/
